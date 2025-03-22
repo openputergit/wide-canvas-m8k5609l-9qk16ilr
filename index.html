@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Vision - Calorie Predictor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3366FF;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .drag-area {
+            border: 2px dashed #3366FF;
+            transition: all 0.3s ease;
+        }
+        .drag-area.active {
+            border: 2px solid #3366FF;
+            background-color: rgba(51, 102, 255, 0.05);
+        }
+        .auth-modal {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .tab-active {
+            color: #3366FF;
+            border-bottom: 2px solid #3366FF;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3366FF;
+            border-radius: 10px;
+        }
+        .history-item:hover {
+            background-color: rgba(51, 102, 255, 0.05);
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 120px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white shadow-md py-4">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <div class="flex items-center">
+                <i class="bi bi-camera text-3xl text-blue-600 mr-3"></i>
+                <h1 class="text-2xl font-bold text-gray-800">Food Vision</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="historyBtn" class="text-gray-600 hover:text-blue-600 transition-colors">
+                    <i class="bi bi-clock-history mr-1"></i> History
+                </button>
+                <button id="loginBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    Login / Sign Up
+                </button>
+                <div id="userProfile" class="hidden">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                            <span id="userInitials"></span>
+                        </div>
+                        <span id="username" class="font-medium"></span>
+                        <button id="logoutBtn" class="text-red-500 hover:text-red-700">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-12">
+                <h1 class="text-4xl font-bold text-gray-800 mb-4">Food Calorie Predictor</h1>
+                <p class="text-gray-600 max-w-2xl mx-auto">Upload a food image and our AI model will predict its name and approximate calories per serving using advanced computer vision technology.</p>
+            </div>
+
+            <!-- Upload Area -->
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-8 transition-all duration-300 hover:shadow-xl">
+                <div class="drag-area flex flex-col items-center justify-center p-10 rounded-lg cursor-pointer">
+                    <i class="bi bi-cloud-upload text-6xl text-blue-600 mb-6"></i>
+                    <h3 class="text-xl font-semibold mb-3">Drag & Drop your food image</h3>
+                    <p class="text-gray-500 text-sm mb-6">Supported formats: PNG, JPEG, JPG (max 10MB)</p>
+                    <input type="file" id="fileInput" class="hidden" accept="image/png,image/jpeg,image/jpg">
+                    <button class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                        <i class="bi bi-file-earmark-image mr-2"></i>
+                        Browse Files
+                    </button>
+                </div>
+            </div>
+
+            <!-- Preview and Results -->
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Image Preview -->
+                <div class="bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="bi bi-image mr-2 text-blue-600"></i>
+                        Image Preview
+                    </h3>
+                    <div id="previewContainer" class="w-full flex items-center justify-center h-64 bg-gray-100 rounded-lg">
+                        <p id="previewPlaceholder" class="text-gray-400">Your image will appear here</p>
+                        <img id="preview" class="w-full h-full object-contain rounded-lg hidden">
+                    </div>
+                    <div class="flex justify-center mt-4">
+                        <div class="loader"></div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="bi bi-graph-up mr-2 text-blue-600"></i>
+                        Analysis Results
+                    </h3>
+                    <div id="results" class="min-h-[250px]">
+                        <div class="flex flex-col items-center justify-center h-64 bg-gray-100 rounded-lg text-center p-4">
+                            <i class="bi bi-arrow-left-circle text-3xl text-gray-400 mb-4"></i>
+                            <p class="text-gray-500">Upload an image to see the AI analysis</p>
+                            <p class="text-gray-400 text-sm mt-2">Our model will identify the food and estimate calories</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About Section -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mt-8 transition-all duration-300 hover:shadow-xl">
+                <h3 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="bi bi-info-circle mr-2 text-blue-600"></i>
+                    About Food Vision
+                </h3>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <p class="text-gray-700 mb-4">
+                            Food Vision is a deep learning project using computer vision and transfer learning techniques to identify food items and predict their calories.
+                        </p>
+                        <p class="text-gray-700 mb-4">
+                            Our model is trained on the Food-101 dataset and uses EfficientNet architecture for accurate predictions.
+                        </p>
+                        <div class="flex flex-col space-y-2 mt-6">
+                            <h4 class="font-semibold text-gray-800">Key Features:</h4>
+                            <div class="flex items-center">
+                                <i class="bi bi-check-circle-fill text-green-500 mr-2"></i>
+                                <span>Accurate food identification</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="bi bi-check-circle-fill text-green-500 mr-2"></i>
+                                <span>Calorie estimation per serving</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="bi bi-check-circle-fill text-green-500 mr-2"></i>
+                                <span>Support for multiple image formats</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="bi bi-check-circle-fill text-green-500 mr-2"></i>
+                                <span>User history tracking</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-800 mb-4">Model Architecture:</h4>
+                        <div class="mb-6 text-center">
+                            <img src="https://miro.medium.com/v2/resize:fit:828/format:webp/1*TS6wCKBstPwWIfUpL_6-gw.png" alt="EfficientNet Architecture" class="max-w-full rounded-lg shadow-md">
+                            <p class="text-sm text-gray-500 mt-2">EfficientNet architecture used in our model</p>
+                        </div>
+                        <p class="text-gray-700 text-sm">
+                            EfficientNet's layers use a compound scaling method that uniformly scales the depth, width, and resolution of the network for optimal performance.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Sidebar -->
+    <div id="historySidebar" class="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-30">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-xl font-bold text-gray-800">Search History</h3>
+                <button id="closeHistory" class="text-gray-500 hover:text-gray-700">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div id="historyContent" class="overflow-y-auto max-h-[calc(100vh-100px)]">
+                <div id="historyEmpty" class="text-center py-12">
+                    <i class="bi bi-clock-history text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500">No history found</p>
+                    <p class="text-gray-400 text-sm mt-2">Your search history will appear here</p>
+                </div>
+                <div id="historyList" class="hidden space-y-4">
+                    <!-- History items will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 hidden">
+        <div class="auth-modal bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-8 transform scale-95 opacity-0">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-800">Account</h3>
+                <button id="closeAuth" class="text-gray-500 hover:text-gray-700">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            
+            <!-- Auth Tabs -->
+            <div class="flex border-b mb-6">
+                <button id="loginTab" class="tab-active px-4 py-2 font-medium focus:outline-none">Login</button>
+                <button id="signupTab" class="px-4 py-2 font-medium text-gray-500 focus:outline-none">Sign Up</button>
+            </div>
+            
+            <!-- Login Form -->
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label for="loginEmail" class="block text-gray-700 mb-2">Email</label>
+                    <input 
+                        type="email" 
+                        id="loginEmail" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                        placeholder="your@email.com" 
+                        required
+                    >
+                </div>
+                <div>
+                    <label for="loginPassword" class="block text-gray-700 mb-2">Password</label>
+                    <input 
+                        type="password" 
+                        id="loginPassword" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                        placeholder="********" 
+                        required
+                    >
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" class="text-sm text-blue-600 hover:text-blue-800">Forgot password?</button>
+                </div>
+                <button 
+                    type="submit" 
+                    class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    Login
+                </button>
+            </form>
+            
+            <!-- Signup Form -->
+            <form id="signupForm" class="space-y-4 hidden">
+                <div>
+                    <label for="signupName" class="block text-gray-700 mb-2">Full Name</label>
+                    <input 
+                        type="text" 
+                        id="signupName" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                        placeholder="John Doe" 
+                        required
+                    >
+                </div>
+                <div>
+                    <label for="signupEmail" class="block text-gray-700 mb-2">Email</label>
+                    <input 
+                        type="email" 
+                        id="signupEmail" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                        placeholder="your@email.com" 
+                        required
+                    >
+                </div>
+                <div>
+                    <label for="signupPassword" class="block text-gray-700 mb-2">Password</label>
+                    <input 
+                        type="password" 
+                        id="signupPassword" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                        placeholder="********" 
+                        required
+                    >
+                </div>
+                <div>
+                    <label for="signupConfirm" class="block text-gray-700 mb-2">Confirm Password</label>
+                    <input 
+                        type="password" 
+                        id="signupConfirm" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                        placeholder="********" 
+                        required
+                    >
+                </div>
+                <button 
+                    type="submit" 
+                    class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    Create Account
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <footer class="bg-white mt-12 py-8 border-t">
+        <div class="container mx-auto px-4">
+            <div class="text-center">
+                <p class="text-gray-500">© 2023 Food Vision - Calorie Predictor</p>
+                <p class="text-gray-400 text-sm mt-2">Built with EfficientNet and Food-101 dataset</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const dragArea = document.querySelector('.drag-area');
+        const fileInput = document.querySelector('#fileInput');
+        const preview = document.querySelector('#preview');
+        const previewPlaceholder = document.querySelector('#previewPlaceholder');
+        const loader = document.querySelector('.loader');
+        const results = document.querySelector('#results');
+        const historySidebar = document.querySelector('#historySidebar');
+        const historyBtn = document.querySelector('#historyBtn');
+        const closeHistory = document.querySelector('#closeHistory');
+        const historyContent = document.querySelector('#historyContent');
+        const historyEmpty = document.querySelector('#historyEmpty');
+        const historyList = document.querySelector('#historyList');
+        const loginBtn = document.querySelector('#loginBtn');
+        const authModal = document.querySelector('#authModal');
+        const closeAuth = document.querySelector('#closeAuth');
+        const loginTab = document.querySelector('#loginTab');
+        const signupTab = document.querySelector('#signupTab');
+        const loginForm = document.querySelector('#loginForm');
+        const signupForm = document.querySelector('#signupForm');
+        const userProfile = document.querySelector('#userProfile');
+        const username = document.querySelector('#username');
+        const userInitials = document.querySelector('#userInitials');
+        const logoutBtn = document.querySelector('#logoutBtn');
+
+        // App state
+        let currentUser = null;
+        let searchHistory = JSON.parse(localStorage.getItem('foodVisionHistory')) || [];
+        
+        // Initialize app
+        function init() {
+            checkLoggedInUser();
+            updateHistoryDisplay();
+        }
+
+        // User Authentication
+        function checkLoggedInUser() {
+            const savedUser = JSON.parse(localStorage.getItem('foodVisionUser'));
+            if (savedUser) {
+                currentUser = savedUser;
+                showUserProfile();
+            }
+        }
+
+        function showUserProfile() {
+            loginBtn.classList.add('hidden');
+            userProfile.classList.remove('hidden');
+            username.textContent = currentUser.name;
+            userInitials.textContent = currentUser.name.charAt(0).toUpperCase();
+        }
+
+        function hideUserProfile() {
+            userProfile.classList.add('hidden');
+            loginBtn.classList.remove('hidden');
+        }
+
+        function loginUser(email, password) {
+            // Simulate login - in a real app, this would call an API
+            const users = JSON.parse(localStorage.getItem('foodVisionUsers')) || [];
+            const user = users.find(u => u.email === email && u.password === password);
+            
+            if (user) {
+                currentUser = {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email
+                };
+                localStorage.setItem('foodVisionUser', JSON.stringify(currentUser));
+                closeAuthModal();
+                showUserProfile();
+                updateHistoryDisplay();
+                return true;
+            }
+            return false;
+        }
+
+        function signupUser(name, email, password) {
+            // Simulate signup - in a real app, this would call an API
+            const users = JSON.parse(localStorage.getItem('foodVisionUsers')) || [];
+            
+            // Check if user already exists
+            if (users.some(u => u.email === email)) {
+                return false;
+            }
+            
+            const newUser = {
+                id: Date.now().toString(),
+                name,
+                email,
+                password
+            };
+            
+            users.push(newUser);
+            localStorage.setItem('foodVisionUsers', JSON.stringify(users));
+            
+            // Auto login after signup
+            currentUser = {
+                id: newUser.id,
+                name: newUser.name,
+                email: newUser.email
+            };
+            localStorage.setItem('foodVisionUser', JSON.stringify(currentUser));
+            closeAuthModal();
+            showUserProfile();
+            return true;
+        }
+
+        function logoutUser() {
+            localStorage.removeItem('foodVisionUser');
+            currentUser = null;
+            hideUserProfile();
+            updateHistoryDisplay();
+        }
+
+        // File Handling
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Trigger file input when clicking the browse button
+        dragArea.addEventListener('click', () => fileInput.click());
+
+        // Handle drag events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, preventDefaults);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dragArea.addEventListener(eventName, () => {
+                dragArea.classList.add('active');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, () => {
+                dragArea.classList.remove('active');
+            });
+        });
+
+        // Handle file drop
+        dragArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            const file = files[0];
+            const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+            
+            if (file && validTypes.includes(file.type)) {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                    previewPlaceholder.classList.add('hidden');
+                    loader.style.display = 'block';
+                    results.innerHTML = `
+                        <div class="bg-blue-50 rounded-lg p-4 animate-pulse">
+                            <div class="flex items-center space-x-3">
+                                <div class="loader" style="display: inline-block;"></div>
+                                <p class="text-blue-600">Analyzing your food image...</p>
+                            </div>
+                            <p class="text-gray-500 text-sm mt-2">This may take a few moments</p>
+                        </div>
+                    `;
+                    
+                    try {
+                        // First upload the file
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('userId', currentUser ? currentUser.id : 'anonymous');
+                        formData.append('appSlug', 'food-vision-123');
+
+                        const uploadResponse = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/storage/upload', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer wXMhVpV4ive7A3GHkcEf6AZUSGI2'
+                            },
+                            body: formData
+                        });
+
+                        const uploadData = await uploadResponse.json();
+
+                        // Then analyze with AI
+                        const aiResponse = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/ai', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer wXMhVpV4ive7A3GHkcEf6AZUSGI2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                messages: [{
+                                    role: "user",
+                                    content: [
+                                        {
+                                            type: "text",
+                                            text: "What food item is this? Please analyze this food image and provide me with: 1) The exact name of the food item, 2) Approximate calories per serving, 3) A brief nutritional summary including protein, carbs, and fats if possible. Format your response with clear headings and bullet points."
+                                        },
+                                        {
+                                            type: "image_url",
+                                            image_url: {
+                                                url: uploadData.url
+                                            }
+                                        }
+                                    ]
+                                }]
+                            })
+                        });
+
+                        const aiData = await aiResponse.json();
+                        
+                        // Add to history
+                        addToHistory(file.name, preview.src, aiData.message);
+                        
+                        // Format the AI response
+                        const formattedResult = formatAIResponse(aiData.message);
+                        
+                        // Display results
+                        results.innerHTML = formattedResult;
+                    } catch (error) {
+                        results.innerHTML = `
+                            <div class="bg-red-50 rounded-lg p-4 border border-red-200">
+                                <div class="flex items-center text-red-600 mb-2">
+                                    <i class="bi bi-exclamation-triangle-fill mr-2"></i>
+                                    <h3 class="font-semibold">Analysis Failed</h3>
+                                </div>
+                                <p class="text-gray-700">We encountered an error while analyzing your image. Please try again.</p>
+                                <button class="mt-3 text-blue-600 hover:underline" onclick="location.reload()">Retry</button>
+                            </div>
+                        `;
+                    } finally {
+                        loader.style.display = 'none';
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else {
+                showAlert('Please upload a valid image file (PNG, JPEG, JPG)');
+            }
+        }
+
+        // Format AI Response
+        function formatAIResponse(message) {
+            // Try to extract food name, calories, and nutritional info
+            let formattedHTML = '';
+            
+            try {
+                // Extract sections based on common patterns in AI responses
+                const foodNameMatch = message.match(/food item:?\s*(.*?)(?:\n|$)/i) || 
+                                    message.match(/This is:?\s*(.*?)(?:\n|$)/i) || 
+                                    message.match(/This appears to be:?\s*(.*?)(?:\n|$)/i);
+                
+                const caloriesMatch = message.match(/calories:?\s*(.*?)(?:\n|per serving|$)/i) || 
+                                    message.match(/approximately:?\s*(\d+[–\-]?\d*\s*calories)/i) ||
+                                    message.match(/(\d+[–\-]?\d*\s*calories)/i);
+                
+                // Create a nice formatted card
+                formattedHTML = `
+                    <div class="bg-white border rounded-lg overflow-hidden">
+                        <div class="bg-blue-600 text-white px-6 py-4">
+                            <h3 class="font-bold text-xl">Analysis Results</h3>
+                        </div>
+                        <div class="p-6">
+                            ${message.replace(/\n/g, '<br>')}
+                        </div>
+                        <div class="bg-gray-50 px-6 py-4 border-t">
+                            <button 
+                                class="text-blue-600 hover:text-blue-800 flex items-center"
+                                onclick="document.querySelector('#fileInput').click()"
+                            >
+                                <i class="bi bi-arrow-repeat mr-2"></i> Analyze another image
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                // If parsing fails, just return the message with basic formatting
+                formattedHTML = `
+                    <div class="bg-white p-6 rounded-lg border">
+                        <h3 class="font-semibold text-lg mb-3">Analysis Results</h3>
+                        <p class="text-gray-700 whitespace-pre-line">${message}</p>
+                    </div>
+                `;
+            }
+            
+            return formattedHTML;
+        }
+
+        // History Management
+        function addToHistory(fileName, imageUrl, result) {
+            if (!currentUser) return; // Only save history for logged in users
+            
+            const historyItem = {
+                id: Date.now().toString(),
+                userId: currentUser.id,
+                fileName,
+                imageUrl,
+                result,
+                timestamp: new Date().toISOString()
+            };
+            
+            searchHistory.unshift(historyItem); // Add to the beginning
+            
+            // Keep only the last 20 items
+            if (searchHistory.length > 20) {
+                searchHistory = searchHistory.slice(0, 20);
+            }
+            
+            localStorage.setItem('foodVisionHistory', JSON.stringify(searchHistory));
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            if (!currentUser) {
+                historyEmpty.classList.remove('hidden');
+                historyList.classList.add('hidden');
+                historyEmpty.innerHTML = `
+                    <i class="bi bi-lock text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500">Please login to view history</p>
+                    <button 
+                        class="mt-4 text-blue-600 hover:text-blue-800"
+                        onclick="document.getElementById('loginBtn').click(); document.getElementById('closeHistory').click();"
+                    >
+                        Login now
+                    </button>
+                `;
+                return;
+            }
+            
+            // Filter history for current user
+            const userHistory = searchHistory.filter(item => item.userId === currentUser.id);
+            
+            if (userHistory.length === 0) {
+                historyEmpty.classList.remove('hidden');
+                historyList.classList.add('hidden');
+                historyEmpty.innerHTML = `
+                    <i class="bi bi-clock-history text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500">No history found</p>
+                    <p class="text-gray-400 text-sm mt-2">Your search history will appear here</p>
+                `;
+            } else {
+                historyEmpty.classList.add('hidden');
+                historyList.classList.remove('hidden');
+                
+                historyList.innerHTML = '';
+                userHistory.forEach(item => {
+                    const date = new Date(item.timestamp).toLocaleDateString();
+                    const time = new Date(item.timestamp).toLocaleTimeString();
+                    
+                    const historyItemEl = document.createElement('div');
+                    historyItemEl.className = 'history-item p-3 rounded-lg border hover:border-blue-300 transition-colors';
+                    historyItemEl.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <div class="w-16 h-16 rounded-md overflow-hidden shrink-0 bg-gray-100">
+                                <img src="${item.imageUrl}" alt="Food" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-medium text-gray-800 truncate">${item.fileName}</p>
+                                <p class="text-gray-500 text-sm">${date}, ${time}</p>
+                            </div>
+                            <button 
+                                class="text-gray-400 hover:text-red-500 tooltip"
+                                onclick="removeHistoryItem('${item.id}')"
+                            >
+                                <i class="bi bi-trash"></i>
+                                <span class="tooltiptext">Delete</span>
+                            </button>
+                        </div>
+                    `;
+                    
+                    historyItemEl.addEventListener('click', (e) => {
+                        if (!e.target.closest('button')) {
+                            // Show the previous result
+                            preview.src = item.imageUrl;
+                            preview.classList.remove('hidden');
+                            previewPlaceholder.classList.add('hidden');
+                            results.innerHTML = formatAIResponse(item.result);
+                            closeHistorySidebar();
+                        }
+                    });
+                    
+                    historyList.appendChild(historyItemEl);
+                });
+            }
+        }
+
+        function removeHistoryItem(id) {
+            searchHistory = searchHistory.filter(item => item.id !== id);
+            localStorage.setItem('foodVisionHistory', JSON.stringify(searchHistory));
+            updateHistoryDisplay();
+        }
+
+        // UI Interactions
+        // Open/Close History Sidebar
+        historyBtn.addEventListener('click', () => {
+            historySidebar.classList.remove('translate-x-full');
+        });
+
+        closeHistory.addEventListener('click', closeHistorySidebar);
+
+        function closeHistorySidebar() {
+            historySidebar.classList.add('translate-x-full');
+        }
+
+        // Auth Modal
+        loginBtn.addEventListener('click', openAuthModal);
+        closeAuth.addEventListener('click', closeAuthModal);
+
+        function openAuthModal() {
+            authModal.classList.remove('hidden');
+            setTimeout(() => {
+                document.querySelector('.auth-modal').classList.add('opacity-100', 'scale-100');
+                document.querySelector('.auth-modal').classList.remove('opacity-0', 'scale-95');
+            }, 10);
+        }
+
+        function closeAuthModal() {
+            document.querySelector('.auth-modal').classList.remove('opacity-100', 'scale-100');
+            document.querySelector('.auth-modal').classList.add('opacity-0', 'scale-95');
+            setTimeout(() => {
+                authModal.classList.add('hidden');
+            }, 300);
+        }
+
+        // Auth Tab Switching
+        loginTab.addEventListener('click', () => {
+            loginTab.classList.add('tab-active');
+            signupTab.classList.remove('tab-active');
+            loginForm.classList.remove('hidden');
+            signupForm.classList.add('hidden');
+        });
+
+        signupTab.addEventListener('click', () => {
+            signupTab.classList.add('tab-active');
+            loginTab.classList.remove('tab-active');
+            signupForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+        });
+
+        // Form Submissions
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.querySelector('#loginEmail').value;
+            const password = document.querySelector('#loginPassword').value;
+            
+            if (loginUser(email, password)) {
+                showAlert('Login successful', 'success');
+            } else {
+                showAlert('Invalid email or password', 'error');
+            }
+        });
+
+        signupForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.querySelector('#signupName').value;
+            const email = document.querySelector('#signupEmail').value;
+            const password = document.querySelector('#signupPassword').value;
+            const confirm = document.querySelector('#signupConfirm').value;
+            
+            if (password !== confirm) {
+                showAlert('Passwords do not match', 'error');
+                return;
+            }
+            
+            if (signupUser(name, email, password)) {
+                showAlert('Account created successfully', 'success');
+            } else {
+                showAlert('Email already in use', 'error');
+            }
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', () => {
+            logoutUser();
+            showAlert('Logged out successfully', 'success');
+        });
+
+        // Alert System
+        function showAlert(message, type = 'info') {
+            const alertContainer = document.createElement('div');
+            alertContainer.className = `fixed bottom-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-red-500' : 
+                'bg-blue-500'
+            } text-white`;
+            
+            alertContainer.innerHTML = `
+                <div class="flex items-center">
+                    <i class="bi ${
+                        type === 'success' ? 'bi-check-circle' : 
+                        type === 'error' ? 'bi-exclamation-triangle' : 
+                        'bi-info-circle'
+                    } mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(alertContainer);
+            
+            setTimeout(() => {
+                alertContainer.classList.add('opacity-0', 'translate-y-2');
+                alertContainer.style.transition = 'opacity 0.5s, transform 0.5s';
+                setTimeout(() => {
+                    alertContainer.remove();
+                }, 500);
+            }, 3000);
+        }
+
+        // Initialize the app
+        init();
+        
+        // Close modals when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === authModal) {
+                closeAuthModal();
+            }
+        });
+
+        // Function to generate random users for testing (can be removed in production)
+        function generateTestUsers() {
+            if (!localStorage.getItem('foodVisionUsers')) {
+                const testUsers = [
+                    {
+                        id: '1',
+                        name: 'Test User',
+                        email: 'test@example.com',
+                        password: 'password123'
+                    }
+                ];
+                localStorage.setItem('foodVisionUsers', JSON.stringify(testUsers));
+            }
+        }
+        
+        // Generate test users
+        generateTestUsers();
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
